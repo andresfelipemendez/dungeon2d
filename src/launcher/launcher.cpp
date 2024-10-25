@@ -1,27 +1,61 @@
 #include <windows.h>
-#include <iostream>
+#include <stdio.h>
 #include <chrono>
 #include <thread>
-#include <filesystem>
 
-// Helper function to build the DLL
+
+typedef void (*InitFunc)();
+typedef void (*UpdateFunc)();
+
+
+HMODULE dllHandle = nullptr;
+InitFunc InitializeEngine = nullptr;
+UpdateFunc UpdateGame = nullptr;
+
 void BuildDLL() {
-    std::string command = "cl /LD src\\engine\\engine.cpp /Fe:bin\\game_engine.dll";
-    std::cout << "Building DLL with command: " << command << std::endl;
+    const char* command = "cl /LD src\\engine\\engine.cpp /Iinclude /link /implib:bin\\game_engine.lib";
+    printf("Building DLL with command: %s\n", command);
     
-    int result = system(command.c_str());
+    int result = system(command);
     if (result == 0) {
-        std::cout << "DLL compiled successfully.\n";
+        printf("DLL compiled successfully.\n");
     } else {
-        std::cerr << "Failed to compile DLL.\n";
+        printf( "Failed to compile DLL.\n");
         exit(1);
     }
 }
 
+
+void LoadDLL() {
+    if (dllHandle) {
+        FreeLibrary(dllHandle); 
+    }
+
+    dllHandle = LoadLibraryA("bin\\game_engine.dll");
+    if (!dllHandle) {
+        printf("Failed to load DLL.\n");
+        exit(1);
+    }
+
+    InitializeEngine = (InitFunc)GetProcAddress(dllHandle, "InitializeEngine");
+    UpdateGame = (UpdateFunc)GetProcAddress(dllHandle, "UpdateGame");
+
+    if (!InitializeEngine || !UpdateGame) {
+        printf("Failed to load functions from DLL.\n");
+        exit(1);
+    }
+
+    InitializeEngine();
+
+    printf("DLL loaded successfully.\n");
+}
+
 int main() {
+
     BuildDLL();
-    // load the dll
-    // wathc the directory
+    LoadDLL() ;
+    // watch the directory
     // rebuild upon change
     // reload the dll
+    // since the game listen for keyboard input, pass a method to exit/close the launcher 
 }
